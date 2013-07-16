@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Module>
+<ModulePrefs title="Who likes what?" scrolling="true" description="Display related pages depending on member recommendations" 
+author="Karthik" author_email="manikarthik84@gmail.com" directory_title="Who likes what?" 
+
+	thumbnail="http://xmlgadgets.com/ig/img/who-likes.png"
+    screenshot="http://xmlgadgets.com/ig/img/who-likes_.png" 
+>
+  <Require feature="opensocial-0.8" />
+  <Require feature="views" />
+  <Require feature="dynamic-height" />
+  <Require feature="friendconnect" />
+  <Require feature="minimessage" />
+  <Optional feature="skins" />
+ </ModulePrefs>
+     <UserPref name="pageTitle" display_name="Page Title" > 
+    </UserPref>
+     <UserPref name="pageUrl" display_name="Page URL"  >
+    </UserPref>	
+	    <UserPref name="maxMembers" display_name="Max number of members to show" default_value="2" datatype="enum" >
+        <EnumValue value="2" display_value="2" />
+		<EnumValue value="3" display_value="3" />
+		<EnumValue value="5" display_value="5" />
+		<EnumValue value="7" display_value="7" />
+		<EnumValue value="10" display_value="10" />
+        
+    </UserPref>
+     <UserPref name="imagewidth" display_name="Thumbnail Size" default_value="25" datatype="enum" >
+        <EnumValue value="20" display_value="20 Smallest" />
+        <EnumValue value="25" display_value="25 Smaller" />
+        <EnumValue value="30" display_value="30 Small" />
+        <EnumValue value="35" display_value="35 Small Medium" />
+        <EnumValue value="40" display_value="40 Medium" />
+
+    </UserPref>
+	
+ <Content type="html" view="default">
+  <![CDATA[
+  
+   <style>
+    ul { list-style:none; margin:0px; padding:0px; }
+    li { background-color: #EFF7FF; margin:3px 0px; padding:0px; width:200px; height:56px; float:left; }
+    img { border: 0px; } 
+    li img { margin:0px auto; padding:2px; border:solid 1px #aaaaaa; width: 50px; height: 50px; }
+    li span.note { font-size:0.8em; }
+    li p { margin:0; }
+    textarea { display:inline; width:136px; height:35px; margin:0; float:left; }
+    input { display:block; clear:left; }
+  </style>
+  <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.2.6/jquery.min.js"></script>
+  <script type="text/javascript">
+      var fp = {
+        viewer:null,
+        myVisits:[],
+        config:{          maxDisplay: 10,          messageDisappear: 3        },
+        init:function() 
+		{
+          var viewParams = gadgets.views.getParams();
+          if (viewParams.maxDisplay != undefined) 
+		  {
+            var max = parseInt(viewParams.maxDisplay);
+            if (max >= 3 && max <= 20) {
+              fp.config.maxDisplay = max;
+            }
+          }
+          $('body').css('background-color', gadgets.skins.getProperty('CONTENT_BG_COLOR'));
+          $('body').css('color', gadgets.skins.getProperty('CONTENT_TEXT_COLOR'));
+		  $('body').css('font-face', gadgets.skins.getProperty('FONT_FAMILY'));
+          $('#header').css('color', gadgets.skins.getProperty('CONTENT_HEADLINE_COLOR'));
+		  $('#header').css('background-color', gadgets.skins.getProperty('ENDCAP_BG_COLOR'));
+		  $('#footer').css('background-color', gadgets.skins.getProperty('ENDCAP_BG_COLOR'));
+          $('#footer').css('color', gadgets.skins.getProperty('ENDCAP_TEXT_COLOR'));
+          
+          var req = opensocial.newDataRequest();
+          var params = {};
+          params[opensocial.DataRequest.PeopleRequestFields.PROFILE_DETAILS] = [opensocial.Person.Field.PROFILE_URL];
+          req.add(req.newFetchPersonRequest(opensocial.IdSpec.PersonId.VIEWER, params), 'viewer');
+          var idspec = opensocial.newIdSpec({'userId':opensocial.IdSpec.PersonId.OWNER,
+                                             'groupId':opensocial.IdSpec.GroupId.FRIENDS});
+          req.add(req.newFetchPersonAppDataRequest(idspec, 'myVisit'), 'myVisit');
+          req.send(function(response) 
+		  {
+            if (!response.get('viewer').hadError()) 
+			{
+              fp.viewer = response.get('viewer').getData();
+            }
+            if (response.get('myVisit').hadError()) 
+			{
+              fp.myVisits = [];
+            } 
+			else 
+			{
+              var myVisits = response.get('myVisit').getData();
+              var exist = false;
+              $.each(myVisits, function(myVisit) 
+			  {
+                var json = gadgets.util.unescapeString(this.myVisit);
+                var foot = gadgets.json.parse(json);
+                fp.myVisits.unshift(foot);
+              });
+				fp.myVisits.sort(function(a, b) {
+                return b.myVisit1 - a.myVisit1;
+              });
+              fp.showmyVisits();
+            }
+          });
+        },
+        showmyVisits:function() {
+          $('#myVisits').empty();
+          var html = '';
+		   var vhtml = '';
+		   
+		   var linkColor = gadgets.skins.getProperty('CONTENT_LINK_COLOR');
+		   var textColor = gadgets.skins.getProperty('CONTENT_TEXT_COLOR');
+		   var fontFamily = gadgets.skins.getProperty('FONT_FAMILY');
+		   var prefs = new _IG_Prefs();
+		   var imgw = prefs.getInt("imagewidth");
+		   var ptitle = prefs.getString("pageTitle");
+		   var purl = prefs.getString("pageUrl");
+		   var noOfMembs = prefs.getInt("maxMembers");
+		   var memName;
+		   fontFamily = 'Tahoma';
+		   document.getElementById('purl').value = purl;
+		   document.getElementById('ptitle').value = ptitle;
+          for (var i in fp.myVisits) 
+		  {
+           // if (i == fp.config.maxDisplay) break;
+            var foot = fp.myVisits[i];		  
+		  if (fp.viewer == null) 
+		  {}
+		  else
+		  {
+		   if (fp.viewer.getField(opensocial.Person.Field.PROFILE_URL) == foot.profile) 
+		   {
+			putViewerlink(foot.myVisit1);
+		      }
+	       }
+		 if (i < noOfMembs )
+		  { 
+		  var fulltext = foot.myVisit1;
+		  if (fulltext.search(document.getElementById('purl').value) >= 0)
+		  {
+		    //if (foot.name.length < 16)
+		    //   memName = foot.name;
+			//else
+			//   memName = foot.name.substr(0,15) + '<br>' + foot.name.substr(15,foot.name.length - 15);
+			memName = foot.name;
+			
+			var links = fulltext.split('end_of_entry');
+		    html += '<tr><td valign=top><img src = "' + foot.thumbnail + '" width=' + imgw + ' height=' + imgw + '></td>';
+			html += '<td valign=top>';
+			html += '<a href="' + foot.profile + '" target="_top" >'
+			html += '<span  style="font-size:13px;color:' + linkColor +';font-family:' + fontFamily +';"><b>' + memName + '</b></a></span><span  style="font-size:12px;font-family:' + fontFamily +';">'
+			html += ' also liked '
+            var k =1;
+			for (j = links.length - 2; j >=0 && k < 3; j--)
+			{
+			    var link1 = links[j].split('end_of_url');
+				//alert (links[j]);
+				//alert(link1[1] + '---' + link1[0] );
+				if (link1[0] != document.getElementById('purl').value)
+				{
+					html += '<a href="' + link1[0] + '" target="_top" ><span  style="font-size:13px;color:' + linkColor +';font-family:' + fontFamily +';">' + link1[1] + '</a>';
+					html += ', ';
+					k++;
+				}
+				
+			}
+			html +=  '</span></td></tr>';
+			}
+		 }	
+          };
+          if (fp.viewer == null) 
+		  {
+		    vhtml = '<table><tr><td><span style="font-size:13px;"><b>Who likes this?</b></span></td><td><input type=button onclick="showAlert();" value="Like"></td></tr></table>';
+			$('#header').html(vhtml);
+          }
+		  else
+		   {
+		   //alert("like? " + document.getElementById('liked').value );
+		      if (document.getElementById('liked').value == "0")
+			  {
+				 vhtml = '<table><tr><td><span style="font-size:13px;"><b>Who likes this?</b></span></td><td><input type=button onclick="likedIt();" value="Like"></td></tr></table>';
+			  }
+			  else
+			  {
+				 vhtml = '<table><tr><td><span style="font-size:13px;"><b>Who likes this?</b></span></td><td><button type="button" disabled="disabled">You liked!</button></td></tr></table>';
+			  }
+			  $('#header').html(vhtml);
+				
+		  }
+		  if (html == '')
+		  {
+		     html = '<span style="font-size:13px;"><b>Be the first to Like this page !</b>'
+		  }
+		  html = '<table>' + html + '</table>';
+		  html += '<br>';
+		  
+          $('#myVisits').html(html);
+          $('#myVisits li').css('background-color', gadgets.skins.getProperty('ALTERNATE_BG_COLOR'));
+          gadgets.window.adjustHeight();
+        }
+
+      };
+	  
+	  function putViewerlink(link1)
+	{
+	document.getElementById('hiddenlink').value = link1;
+	var liked = 0;
+//	alert('searching ' + document.getElementById('purl').value);
+	//alert('in ' + link1);
+	if (link1.search(document.getElementById('purl').value) >= 0)
+		{
+		   liked = 1;
+		   document.getElementById('liked').value = "1";
+		}
+	//alert("like? " + document.getElementById('liked').value );
+	}
+	  function likedIt()
+	{
+	//alert("calling liked it");
+		var visits = document.getElementById('hiddenlink').value;
+		visits += document.getElementById('purl').value;
+		visits += 'end_of_url';
+		visits += document.getElementById('ptitle').value;
+		visits += 'end_of_entry';
+		var foot = {
+		'id':         fp.viewer.getId(),
+		'name':       fp.viewer.getDisplayName(),
+		'thumbnail':  fp.viewer.getField(opensocial.Person.Field.THUMBNAIL_URL),
+		'profile':    fp.viewer.getField(opensocial.Person.Field.PROFILE_URL),
+		'myVisit1':  visits
+		};							
+	 var  myVisit1 = gadgets.json.stringify(foot);
+	  var req = opensocial.newDataRequest();
+	  req.add(req.newUpdatePersonAppDataRequest(opensocial.IdSpec.PersonId.VIEWER, 'myVisit', myVisit1));
+	  req.send();
+	  var vhtml = '<table><tr><td><span style="font-size:13px;"><b>Who likes this?</b></span></td><td><button type="button" disabled="disabled">You liked!</button></td></tr></table>';
+	  
+	  $('#header').html(vhtml);
+	  //alert("exiting liked it");
+	}
+	function showAlert() {
+	alert('Please Join/Sign in this site!');
+}
+
+ </script>
+  <script type="text/javascript">
+    gadgets.util.registerOnLoadHandler(fp.init);
+  </script>
+  <div id="header" class="header"></div>
+   <div id="viewerDiv"></div>
+  <div id="myVisits"></div>
+  <div id="footer">
+  <a href="http://www.didiknow.com/2010/04/who-likes-this-google-friend-connect.html?utm_source=WhoLikes&utm_medium=GFC&utm_campaign=Gadget" target="_blank"><span style="font-size:11px;">Get This!</span></a>
+  </div>
+  <input type=hidden id=hiddenlink value="">
+  <input type=hidden id=liked value="0">
+  <input type=hidden id=purl value="0">
+  <input type=hidden id=ptitle value="0">
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try {
+var pageTracker = _gat._getTracker("UA-4747275-3");
+pageTracker._trackPageview();
+pageTracker._trackEvent('WhoLikesWhat', 'Viewed');
+} catch(err) {}</script>
+
+ 
+ 
+]]>
+ </Content>
+</Module>
